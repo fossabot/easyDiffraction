@@ -21,7 +21,7 @@ class StatusModel(QObject):
             StatusItem('numPars', title='Number of parameters', additionalData=1),
             StatusItem('numPhases', title='Number of phases', additionalData=0),
             StatusItem('numData', title='Number of data files', additionalData=0),
-            StatusItem('statText', None, title='Refiner message:', additionalData=0)
+            StatusItem('statText', None, title='Weighted variable distance', additionalData=0)
         ])
         self._updateStatusList()
 
@@ -131,10 +131,7 @@ class StatusModel(QObject):
         self._interestedList.setItemValue('numPars', numPars)
         self._interestedList.setItemValue('numPhases', len(project_dict['phases']))
         self._interestedList.setItemValue('numData', len(project_dict['experiments']))
-        if text is not None:
-            if text is '\n':
-                return
-            self._interestedList.setItemValue('statText', text)
+        self._interestedList.setItemValue('statText', text)
 
 
     def onProjectChanged(self):
@@ -148,7 +145,7 @@ class StatusModel(QObject):
 
     def onRefinementDone(self):
         """Define what to do when the refinement done is triggered"""
-        self._setModelFromProject(text='Refinement Complete')
+        self._setModelFromProject(text=None)  # Remove from StatusBar
         self._chartDisplayModel.layoutChanged.emit()
 
     def returnChartModel(self):
@@ -156,4 +153,6 @@ class StatusModel(QObject):
         return self._chartDisplayModel
 
     def writeMessage(self, text):
+        if text is '\n':
+            return
         self._setModelFromProject(text)
