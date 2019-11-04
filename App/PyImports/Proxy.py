@@ -2,7 +2,6 @@ import os
 import logging
 
 from PySide2.QtCore import QUrl, QObject, Signal, Slot, Property
-from PySide2.QtGui import QStandardItemModel
 
 from PyImports.Calculators.CryspyCalculator import CryspyCalculator
 from PyImports.Models.MeasuredDataModel import MeasuredDataModel
@@ -77,9 +76,11 @@ class Proxy(QObject):
 
     dummySignal = Signal()
     measuredData = Property('QVariant', lambda self: self._measured_data_model.asDataModel(), notify=dummySignal)
-    measuredDataHeader = Property('QVariant', lambda self: self._measured_data_model.asHeadersModel(), notify=dummySignal)
+    measuredDataHeader = Property('QVariant', lambda self: self._measured_data_model.asHeadersModel(),
+                                  notify=dummySignal)
     calculatedData = Property('QVariant', lambda self: self._calculated_data_model.asDataModel(), notify=dummySignal)
-    calculatedDataHeader = Property('QVariant', lambda self: self._calculated_data_model.asHeadersModel(), notify=dummySignal)
+    calculatedDataHeader = Property('QVariant', lambda self: self._calculated_data_model.asHeadersModel(),
+                                    notify=dummySignal)
     braggPeaks = Property('QVariant', lambda self: self._bragg_peaks_model.asDataModel(), notify=dummySignal)
     braggPeaksTicks = Property('QVariant', lambda self: self._bragg_peaks_model.asTickModel(), notify=dummySignal)
     cellParameters = Property('QVariant', lambda self: self._cell_parameters_model.asModel(), notify=dummySignal)
@@ -131,6 +132,7 @@ class Proxy(QObject):
         self._refinement_done = False
         self._refine_thread.finished.connect(self._thread_finished)
         self._refine_thread.failed.connect(self._thread_failed)
+        self._refine_thread.message.connect(self._status_model.writeMessage)
         self._refine_thread.start()
         self.refinementChanged.emit()
         logging.info("")
@@ -156,10 +158,12 @@ class Proxy(QObject):
         if self._main_rcif_path:
             return os.path.dirname(os.path.abspath(self._main_rcif_path))
         return ""
+
     def get_project_url_absolute_path(self):
         if self._main_rcif_path:
             return str(QUrl.fromLocalFile(os.path.dirname(self._main_rcif_path)).toString())
         return ""
+
     project_dir_absolute_path = Property(str, get_project_dir_absolute_path, notify=projectChanged)
     project_url_absolute_path = Property(str, get_project_url_absolute_path, notify=projectChanged)
 
@@ -195,4 +199,3 @@ class Proxy(QObject):
         # Show the generated report in the default browser
         url = os.path.realpath(full_filename)
         Helpers.open_url(url=url)
-

@@ -20,7 +20,8 @@ class StatusModel(QObject):
             chiItem,
             StatusItem('numPars', title='Number of parameters', additionalData=1),
             StatusItem('numPhases', title='Number of phases', additionalData=0),
-            StatusItem('numData', title='Number of data files', additionalData=0)
+            StatusItem('numData', title='Number of data files', additionalData=0),
+            StatusItem('statText', None, title='Refiner message:', additionalData=0)
         ])
         self._updateStatusList()
 
@@ -51,7 +52,7 @@ class StatusModel(QObject):
             self._roles_list.append(display_role)
             self._roles_dict['plot'][self._first_role + i + offset] = role_name.encode()
 
-    def _setModelFromProject(self):
+    def _setModelFromProject(self, text=None):
         """Create the initial data list with structure for GUI fitables table."""
         self._statusBarModel.removeColumns(0, self._statusBarModel.columnCount())
         self._chartDisplayModel.removeColumns(0, self._chartDisplayModel.columnCount())
@@ -59,10 +60,11 @@ class StatusModel(QObject):
         columnStatusBar = []
         columnChartDisplay = []
 
-        self._updateStatusList()
+        self._updateStatusList(text)
 
         def makeItem(thisInterest, offset=0):
             """Make an item. This can be a plot or status bar"""
+            discard = False
             if offset == 1:
                 theseItems = self._roles_dict['plot'].items()
             else:
@@ -74,24 +76,29 @@ class StatusModel(QObject):
                     value = thisInterest.title
                 elif role_name == 'value':
                     value = thisInterest.value
+                    if value is None:
+                        discard = True
                 else:
                     continue
                 item.setData(value, role)
+            if discard:
+                item = None
             return item
 
         for interest in self._interestedList:
             # Add the status bar item
-            columnStatusBar.append(makeItem(interest))
-            # Does this need to added to the plot?
-            if interest.additionalData == 1:
-                columnChartDisplay.append(makeItem(interest, offset=1))
+            if interest.value is not None:
+                columnStatusBar.append(makeItem(interest))
+                # Does this need to added to the plot?
+                if interest.additionalData == 1:
+                    columnChartDisplay.append(makeItem(interest, offset=1))
 
-            # Does this item also have previous values which need to be shown?
-            if interest.hasPrevious:
-                interest.setReturn(True)
-                if interest.value is not None:
-                    columnStatusBar.append(makeItem(interest))
-                interest.setReturn(False)
+                # Does this item also have previous values which need to be shown?
+                if interest.hasPrevious:
+                    interest.setReturn(True)
+                    if interest.value is not None:
+                        columnStatusBar.append(makeItem(interest))
+                    interest.setReturn(False)
 
         # Set the models
         self._statusBarModel.appendColumn(columnStatusBar) # dataChanged is not emited. why?
@@ -103,7 +110,7 @@ class StatusModel(QObject):
                                               self._roles_list)
 
 
-    def _updateStatusList(self):
+    def _updateStatusList(self, text=None):
         """Update the values of the Item List"""
         project_dict = self._calculator.asDict()
 
@@ -124,6 +131,10 @@ class StatusModel(QObject):
         self._interestedList.setItemValue('numPars', numPars)
         self._interestedList.setItemValue('numPhases', len(project_dict['phases']))
         self._interestedList.setItemValue('numData', len(project_dict['experiments']))
+        if text is not None:
+            if text is '\n':
+                return
+            self._interestedList.setItemValue('statText', text)
 
 
     def onProjectChanged(self):
@@ -137,9 +148,12 @@ class StatusModel(QObject):
 
     def onRefinementDone(self):
         """Define what to do when the refinement done is triggered"""
-        self._setModelFromProject()
+        self._setModelFromProject(text='Refinement Complete')
         self._chartDisplayModel.layoutChanged.emit()
 
     def returnChartModel(self):
         """Return the chart model"""
         return self._chartDisplayModel
+
+    def writeMessage(self, text):
+        self._setModelFromProject(text)
